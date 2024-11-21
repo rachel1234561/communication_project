@@ -1,0 +1,75 @@
+---
+title: "question_2"
+author: "Rachel"
+date: "2024-11-21"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(shiny)
+library(shinythemes)
+
+data <- read.csv("~/Desktop/listings.csv")
+
+#I used AI to build a Function to remove outliers based on IQR
+remove_outliers <- function(df, var_name) {
+  IQR_value <- IQR(df[[var_name]], na.rm = TRUE)
+  lower <- quantile(df[[var_name]], 0.25, na.rm = TRUE) - 1.5 * IQR_value
+  upper <- quantile(df[[var_name]], 0.75, na.rm = TRUE) + 1.5 * IQR_value
+  df %>% filter(df[[var_name]] >= lower & df[[var_name]] <= upper)
+}
+
+ui <- fluidPage(
+  titlePanel("Visualizing Average Number of Reviews"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("var", "Select a variable:", 
+                  choices = c("price", "calculated_host_listings_count"), 
+                  selected = "price"),
+      sliderInput("bins", "Number of bins:", 
+                  min = 5, max = 50, value = 30),
+      checkboxInput("remove_na", "Remove NA values", value = FALSE),
+      checkboxInput("remove_outliers", "Remove Outliers", value = FALSE)  # Option to remove outliers
+    ),
+    mainPanel(
+      plotOutput("hist", width = "500", height = "1000")
+    )
+  )
+)
+
+server <- function(input, output) {
+  
+  filtered_data <- reactive({
+    req(input$var)  # Ensure that the variable is selected
+    
+    df <- data %>%
+      filter(if (input$remove_na) !is.na(.data[[input$var]]) else TRUE)
+    
+    if (input$remove_outliers) {
+      df <- remove_outliers(df, input$var)  # Remove outliers if the checkbox is checked
+    }
+    
+    df  # Return the filtered dataframe
+  })
+  
+  output$hist <- renderPlot({
+    df <- filtered_data()
+    
+    df %>%
+      mutate(bin = cut(.data[[input$var]], breaks = input$bins)) %>%
+      group_by(bin, room_type) %>%
+      summarise(avg_reviews = mean(number_of_reviews, na.rm = TRUE), .groups = 'drop') %>%
+      ggplot(aes(x = bin, y = avg_reviews, fill = room_type)) +
+      geom_bar(stat = "identity", position = "stack") +  # Stacked bars for room_type
+      labs(x = paste(input$var), y = "Average Reviews", 
+           title = paste("Average Reviews by", input$var)) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      scale_fill_brewer(palette = "Set3")  # Color palette for room types
+  })
+}
+
+shinyApp(ui, server)
+```
+
+
