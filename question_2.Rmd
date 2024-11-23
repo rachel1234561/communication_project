@@ -20,28 +20,28 @@ remove_outliers <- function(df, var_name) {
   df %>% filter(df[[var_name]] >= lower & df[[var_name]] <= upper)
 }
 
-ui <- fluidPage(
+ui <- fluidPage(theme=shinytheme("cyborg"),
   titlePanel("Visualizing Average Number of Reviews"),
   sidebarLayout(
     sidebarPanel(
       selectInput("var", "Select a variable:", 
-                  choices = c("price", "calculated_host_listings_count"), 
-                  selected = "price"),
+                  c("price", "calculated_host_listings_count"), 
+                  "price"),
       sliderInput("bins", "Number of bins:", 
                   min = 5, max = 50, value = 30),
       checkboxInput("remove_na", "Remove NA values", value = FALSE),
-      checkboxInput("remove_outliers", "Remove Outliers", value = FALSE)  # Option to remove outliers
+      checkboxInput("remove_outliers", "Remove Outliers", value = FALSE)
     ),
     mainPanel(
-      plotOutput("hist", width = "500", height = "1000")
+      plotOutput("hist", width = "500", height = "600")
     )
   )
 )
 
-server <- function(input, output) {
+server <- function(input, output) { 
   
   filtered_data <- reactive({
-    req(input$var)  # Ensure that the variable is selected
+    req(input$var)  
     
     df <- data %>%
       filter(if (input$remove_na) !is.na(.data[[input$var]]) else TRUE)
@@ -62,10 +62,10 @@ server <- function(input, output) {
       summarise(avg_reviews = mean(number_of_reviews, na.rm = TRUE), .groups = 'drop') %>%
       ggplot(aes(x = bin, y = avg_reviews, fill = room_type)) +
       geom_bar(stat = "identity", position = "stack") +  # Stacked bars for room_type
-      labs(x = paste(input$var), y = "Average Reviews", 
-           title = paste("Average Reviews by", input$var)) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-      scale_fill_brewer(palette = "Set3")  # Color palette for room types
+      labs(x = input$var, y = "Average Reviews", 
+           title = paste("Average Reviews by", input$var)) + #I learned the paste function from google
+      theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5)) +
+      scale_fill_brewer(palette = "Set3") 
   })
 }
 
